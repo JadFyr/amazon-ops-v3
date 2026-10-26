@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>v2 截图预置页（仅开发用）</title>
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<div class="wm-layer" aria-hidden="true"></div>
+<main id="viewport" class="viewport"></main>
+<script>
+/* 开发期用：按 hash 预置状态，直接截某个屏 */
+(function () {
+  const R = window.R;
+  const ids = ['F1','F2','F3','Q1','Q2','Q3','Q4','Q5','Q6','Q7','Q8','Q9','Q10','S1','S2','C1'];
+  const base = {
+    v: 3, seed: 481920, screen: 'welcome', inst: {}, ord: {},
+    book: { wrong: ['Q114', 'Q63', 'F45'], seen: { Q114: { ans: ['a'], auto: true, score: 0, max: 1, type: 'single', at: Date.now() - 86400000 }, Q63: { ans: ['b'], auto: true, score: 1, max: 1, type: 'single', at: Date.now() - 7200000 }, F45: { ans: { a: '1' }, auto: true, score: 0, max: 2, type: 'fill', at: Date.now() - 3600000 } } },
+    exam: { cfg: { count: 20, minutes: 30, types: ['fill','single','multi','short'] },
+            items: [], idx: 0, ans: {}, refOpen: {}, startedAt: null, endsAt: null, running: false, submitted: false },
+    quiz: { module: 'all', mode: 'module', count: 20, items: [], idx: 0, ans: {}, revealed: {}, refOpen: {}, wrong: [], started: false },
+    sim: { idx: 0, step: 0, items: {}, ans: {}, fb: {}, done: {} }
+  };
+  const h = (location.hash || '#welcome').slice(1);
+  const st = JSON.parse(JSON.stringify(base));
+
+  if (h === 'exam-config') { st.screen = 'exam-config'; }
+  if (h === 'exam-run') {
+    st.screen = 'exam-run';
+    st.exam.items = ids.slice(0, 10);
+    st.exam.startedAt = Date.now() - 4 * 60000;
+    st.exam.endsAt = Date.now() + 26 * 60000;
+    st.exam.running = true;
+  }
+  if (h === 'exam-urgent') {
+    st.screen = 'exam-run';
+    st.exam.items = ids.slice(0, 10);
+    st.exam.startedAt = Date.now() - 26 * 60000;
+    st.exam.endsAt = Date.now() + 3 * 60000;
+    st.exam.running = true;
+  }
+  if (h === 'exam-result') {
+    st.screen = 'exam-result';
+    st.exam.items = ['F1', 'Q1', 'S1', 'F2'];
+    st.exam.submitted = true;
+    st.exam.running = false;
+    st.exam.startedAt = Date.now() - 600000;
+    st.exam.endsAt = Date.now();
+    st.exam.usedMs = 600000;
+    st.exam.ans = {
+      F1: { ctr: '0.42', cvr: '6.9', acos: '51.5' },
+      Q1: ['b'],
+      S1: { text: '58% 对 30% 的毛利，单看广告确实是负毛利。但判断是亏损还是投资，要看 CVR、自然单占比、TACOS 三条证据。我会给出第 6 周前压到 30% 以下的承诺。', checked: [true, false, true, false, false] }
+    };
+  }
+  if (h === 'quiz-run') {
+    st.screen = 'quiz-run';
+    st.quiz.items = ['Q1','Q2','Q3'];
+    st.quiz.started = true;
+    st.quiz.revealed = { Q1: true };
+    st.quiz.ans = { Q1: ['a'] };
+    st.quiz.wrong = ['Q1'];
+  }
+  if (h === 'quiz-config') { st.screen = 'quiz-config'; }
+  if (h === 'quiz-interview') {
+    st.screen = 'quiz-run';
+    st.quiz.items = ['S17'];
+    st.quiz.started = true; st.quiz.revealed = {}; st.quiz.ans = {}; st.quiz.wrong = []; st.quiz.refOpen = {};
+  }
+  if (h === 'quiz-interview-open') {
+    st.screen = 'quiz-run';
+    st.quiz.items = ['S17'];
+    st.quiz.started = true;
+    st.quiz.revealed = { S17: true };
+    st.quiz.refOpen = { S17: true };
+    st.quiz.ans = { S17: { text: '我先承认 92% 这个数字本身没有信息量，它只是起点。', checked: [true, true, true, false, false] } };
+    st.quiz.wrong = [];
+  }
+  if (h === 'quiz-s57') {
+    st.screen = 'quiz-run';
+    st.quiz.items = ['S57'];
+    st.quiz.started = true; st.quiz.revealed = {}; st.quiz.ans = {}; st.quiz.wrong = []; st.quiz.refOpen = {};
+  }
+  if (h === 'quiz-s57-open') {
+    st.screen = 'quiz-run';
+    st.quiz.items = ['S57'];
+    st.quiz.started = true;
+    st.quiz.revealed = { S57: true };
+    st.quiz.refOpen = { S57: true };
+    st.quiz.ans = { S57: { text: '我不会先归因到德国人要求高。第一步查是不是同一批货：欧规和美规的电压、快充协议可能不同。', checked: [true, true, true, false, false] } };
+    st.quiz.wrong = [];
+  }
+  if (h === 'quiz-q200') {
+    st.screen = 'quiz-run';
+    st.quiz.items = ['Q200'];
+    st.quiz.started = true;
+    st.quiz.ans = { Q200: ['b'] };
+    st.quiz.revealed = { Q200: true };
+    st.quiz.refOpen = {};
+    st.quiz.wrong = [];
+  }
+  if (h === 'quiz-new') {
+    st.screen = 'quiz-run';
+    st.quiz.items = ['Q36'];
+    st.quiz.started = true; st.quiz.revealed = {}; st.quiz.ans = {}; st.quiz.wrong = [];
+  }
+  if (h === 'quiz-f15') {
+    st.screen = 'quiz-run';
+    st.quiz.items = ['F15'];
+    st.quiz.started = true; st.quiz.revealed = {}; st.quiz.ans = {}; st.quiz.wrong = [];
+  }
+  if (h === 'exam-result2') {
+    st.screen = 'exam-result';
+    st.exam.items = ['F1','Q1','S1','Q18','Q54','S9'];
+    st.exam.ans = { F1:{ctr:'0.44'}, Q1:['b'], Q18:['b'], Q54:['a','b','c'], S9:{text:'先减法再分级', checked:[true,true,true,false,true]} };
+    st.exam.idx = 0;
+    st.exam.running = false;
+    st.exam.submitted = true;
+    st.exam.submittedAt = Date.now();
+  }
+  if (h === 'quiz-fill' || h === 'quiz-fill-open') {
+    st.screen = 'quiz-run';
+    st.quiz.items = ['F1'];
+    st.quiz.started = true;
+    st.quiz.revealed = {};
+    st.quiz.ans = {};
+    st.quiz.wrong = [];
+    if (h === 'quiz-fill-open') {
+      setTimeout(function () {
+        document.querySelectorAll('.hint-pop').forEach(function (d) { d.open = true; });
+      }, 400);
+    }
+  }
+  if (h === 'quiz-stats') {
+    st.screen = 'quiz-stats';
+    st.quiz.items = ['Q1','Q2','Q3'];
+    st.quiz.started = true;
+    st.quiz.revealed = { Q1: true, Q2: true };
+    st.quiz.ans = { Q1: ['a'], Q2: ['b'] };
+    st.quiz.wrong = ['Q1'];
+  }
+  if (h === 'quiz-case' || h === 'quiz-case-open') {
+    st.screen = 'quiz-run';
+    st.quiz.items = ['C4'];
+    st.quiz.started = true;
+    st.quiz.revealed = { C4: true };
+    st.quiz.refOpen = { C4: true };
+    st.quiz.ans = {};
+    st.quiz.wrong = [];
+  }
+  if (h === 'quiz-f45') {
+    st.screen = 'quiz-run';
+    st.quiz.items = ['F45'];
+    st.quiz.started = true; st.quiz.revealed = {}; st.quiz.ans = {}; st.quiz.wrong = [];
+  }
+  if (h === 'quiz-q114') {
+    st.screen = 'quiz-run';
+    st.quiz.items = ['Q114'];
+    st.quiz.started = true; st.quiz.revealed = {}; st.quiz.ans = {}; st.quiz.wrong = [];
+  }
+  if (h === 'review-run') {
+    st.screen = 'quiz-run';
+    st.quiz.mode = 'review';
+    st.quiz.items = ['Q63', 'Q114', 'F45'];
+    st.quiz.idx = 2;
+    st.quiz.started = true; st.quiz.revealed = {}; st.quiz.ans = {}; st.quiz.refOpen = {}; st.quiz.wrong = [];
+  }
+  if (h === 'wrong-run') {
+    st.screen = 'quiz-run';
+    st.quiz.mode = 'wrong';
+    st.quiz.items = ['Q114', 'Q63'];
+    st.quiz.idx = 0;
+    st.quiz.started = true; st.quiz.revealed = {}; st.quiz.ans = {}; st.quiz.refOpen = {}; st.quiz.wrong = [];
+  }
+  if (h.indexOf('kb') === 0) { st.screen = 'kb'; }
+  /* ---- 界面实操模拟：高保真后台各屏 ---- */
+  function U(sid, step, v, extra) {
+    const o = { sid: sid, step: step, v: v || {}, res: {}, tried: {}, score: 0, log: [], done: {}, flash: null, toast: null };
+    return Object.assign(o, extra || {});
+  }
+  if (h === 'uis') { st.screen = 'uis'; }
+  if (h === 'uis-ad') { st.screen = 'uis'; st.ui = U('ad-create', 0, {}); }
+  if (h === 'uis-ad2') { st.screen = 'uis'; st.ui = U('ad-create', 1, { s1: { type: 'sp', name: 'SP-Manual-Earbuds-BLK-1023' } }); }
+  if (h === 'uis-ad3') { st.screen = 'uis'; st.ui = U('ad-create', 2, { s2: { budget: '20', bid: 'down', placement: '0' } }); }
+  if (h === 'uis-kw') {
+    st.screen = 'uis';
+    st.ui = U('ad-create', 3, {
+      s3: {
+        pick: { 'wireless earbuds for small ears': 1, 'bluetooth earbuds small ear tips': 1, 'running headphones sweatproof': 1 },
+        match: { 'wireless earbuds for small ears': 'exact', 'bluetooth earbuds small ear tips': 'exact', 'running headphones sweatproof': 'exact' },
+        bid: { 'wireless earbuds for small ears': '0.72', 'bluetooth earbuds small ear tips': '0.61', 'running headphones sweatproof': '0.68' }
+      }
+    });
+  }
+  if (h === 'uis-st') {
+    st.screen = 'uis';
+    st.ui = U('negate', 0, {
+      s0: {
+        applied: { 'earbuds for running': 'exact', 'phone case': 'exact', 'earbuds': 'phrase', 'wireless earbuds': 'move' },
+        sel: ['cheap earbuds']
+      }
+    });
+  }
+  if (h === 'uis-bid') {
+    st.screen = 'uis';
+    st.ui = U('negate', 1, { s1: { bid: { 'wireless earbuds small ears': '0.85', 'bluetooth earbuds small ear tips': '0.62' } } });
+  }
+  if (h === 'uis-title') { st.screen = 'uis'; st.ui = U('listing', 0, {}); }
+  if (h === 'uis-title-bad') {
+    st.screen = 'uis';
+    st.ui = U('listing', 0, { s0: { title: 'Wireless Earbuds best sound, Anti-bacteria, Owala style!' } });
+  }
+  if (h === 'uis-title-ok') {
+    st.screen = 'uis';
+    st.ui = U('listing', 0, { s0: { title: 'Wireless Earbuds for Small Ears, Bluetooth 5.3 Running Headphones, 48H Playtime, IPX7 Waterproof, Built-in Mic, Black' } });
+  }
+  if (h === 'uis-inv') { st.screen = 'uis'; st.ui = U('restock', 0, {}); }
+  if (h === 'uis-repl') { st.screen = 'uis'; st.ui = U('restock', 1, { s1: { daily: '34', qty: '1082', ship: 'mix' } }); }
+  if (h === 'uis-ipi') { st.screen = 'uis'; st.ui = U('restock', 2, { s2: { act: ['clear', 'sell'] } }); }
+  if (h === 'uis-rv') { st.screen = 'uis'; st.ui = U('review', 0, { s0: { act: ['refund'] } }); }
+  if (h === 'uis-msg') {
+    st.screen = 'uis';
+    st.ui = U('review', 1, {
+      s1: {
+        subject: 'Regarding your order 112-XXXXXXX',
+        body: '非常抱歉这次的产品让您失望了。我们已经安排免费补发一副，并会在 24 小时内发出，物流单号会同步给您。'
+      }
+    });
+  }
+  if (h === 'uis-coupon') {
+    st.screen = 'uis';
+    st.ui = U('coupon', 1, { s1: { ct: 'pct', pct: '15', budget: '300', start: '2026-10-25', end: '2026-11-08' } });
+  }
+  if (h === 'uis-deal') {
+    st.screen = 'uis';
+    st.ui = U('coupon', 2, { s2: { price: '29.99', stock: '200', stack: 'no' } });
+  }
+  if (h === 'uis-done') {
+    st.screen = 'uis';
+    st.ui = U('listing', 2, {}, {
+      score: 1.6,
+      res: {
+        s0: { pts: 1, level: 'ok', msg: '7 条规则全过：117 字符，可以提交。' },
+        s1: { pts: 0.6, level: 'warn', msg: '1000px 只是最低要求，长边 ≥ 1600px 才触发放大镜（移动端转化差别很明显）。' }
+      },
+      flash: { level: 'warn', msg: '1000px 只是最低要求，长边 ≥ 1600px 才触发放大镜（移动端转化差别很明显）。' },
+      done: { listing: 1.6 }
+    });
+  }
+  window.__PRELOAD_STATE__ = st;
+})();
+</script>
+<script src="../js/rng.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/bank-basic.js"></script>
+<script src="../js/bank-listing.js"></script>
+<script src="../js/bank-ads.js"></script>
+<script src="../js/bank-interview.js"></script>
+<script src="../js/bank-ops.js"></script>
+<script src="../js/bank-extra.js"></script>
+<script src="../js/bank-interview2.js"></script>
+<script src="../js/study.js"></script>
+<script src="../js/ui-sim.js"></script>
+<script src="../js/sims.js"></script>
+<script src="../js/engine.js"></script>
+<script src="../js/app.js"></script>
+<script>
+/* 截知识库指定章节 / 搜索结果（预置脚本执行时 KB 还没加载，只能等渲染完再点） */
+(function () {
+  const h = location.hash.slice(1);
+  if (h.indexOf('kb') !== 0) return;
+  setTimeout(function () {
+    if (h === 'kb-ch4') { const b = document.querySelector('[data-kb-ch="ch4"]'); if (b) b.click(); }
+    if (h === 'kb-ch5') { const b = document.querySelector('[data-kb-ch="ch5"]'); if (b) b.click(); }
+    if (h === 'kb-ch6' || h === 'kb-ch6-new') { const b = document.querySelector('[data-kb-ch="ch6"]'); if (b) b.click(); }
+    var m = /[?&]scroll=(\d+|bottom)/.exec(location.search);
+    if (m) { window.scrollTo(0, m[1] === 'bottom' ? document.body.scrollHeight : parseInt(m[1], 10)); }
+    if (h === 'kb-search') {
+      const i = document.querySelector('#kbSearch');
+      if (i) { i.value = 'ACOS'; i.dispatchEvent(new Event('input', { bubbles: true })); }
+    }
+  }, 60);
+})();
+  if (location.hash === '#kb-ch6-new') {
+    setTimeout(function () {
+      var keep = { 'ch6-7': 1, 'ch6-8': 1, 'ch6-9': 1 };
+      document.querySelectorAll('.kb-sec').forEach(function (el) {
+        if (!keep[el.id]) el.style.display = 'none';
+      });
+    }, 350);
+  }
+</script>
+</body>
+</html>
